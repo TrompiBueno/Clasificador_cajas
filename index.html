@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Detector IA Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.0.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  background: radial-gradient(circle at top, #1f2937, #0b1220);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 30px;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.card {
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+  width: fit-content;
+}
+
+input[type="file"] {
+  margin: 10px 0 20px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+}
+
+input[type="file"]:hover {
+  background: #1f2937;
+}
+
+.wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+img {
+  max-width: 500px;
+  display: block;
+  border-radius: 12px;
+}
+
+canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+#estado {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #93c5fd;
+  min-height: 20px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  background: #10b981;
+  border-radius: 999px;
+  font-size: 12px;
+  margin-top: 5px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧠 Detector IA Pro</h1>
+
+<div class="card">
+
+  <input type="file" id="upload" accept="image/*">
+
+  <div id="estado">Cargando modelo...</div>
+
+  <div class="wrapper">
+    <img id="img">
+    <canvas id="canvas"></canvas>
+  </div>
+
+</div>
+
+<script>
+let modelo;
+
+cocoSsd.load().then(m => {
+  modelo = m;
+  document.getElementById("estado").innerHTML = "Modelo listo <span class='badge'>OK</span>";
+});
+
+const img = document.getElementById("img");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+document.getElementById("upload").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => img.src = reader.result;
+  reader.readAsDataURL(file);
+});
+
+img.onload = async () => {
+
+  document.getElementById("estado").innerText = "Analizando imagen...";
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  const predicciones = await modelo.detect(img);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.strokeStyle = "#34d399";
+  ctx.lineWidth = 3;
+  ctx.font = "14px system-ui";
+  ctx.fillStyle = "#34d399";
+
+  if (predicciones.length > 0) {
+
+    predicciones.forEach(p => {
+      const [x, y, w, h] = p.bbox;
+
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillText(
+        `${p.class} ${(p.score * 100).toFixed(1)}%`,
+        x,
+        y > 12 ? y - 5 : 12
+      );
+    });
+
+    document.getElementById("estado").innerHTML =
+      "Detección completada <span class='badge'>LISTO</span>";
+
+  } else {
+
+    ctx.fillStyle = "#facc15";
+    ctx.font = "18px system-ui";
+
+    ctx.fillText("No se detecta nada claro", 20, 40);
+
+    document.getElementById("estado").innerHTML =
+      "Sin detecciones claras <span class='badge' style='background:#f59e0b'>LOW</span>";
+  }
+};
+</script>
+
+</body>
+</html>
